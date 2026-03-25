@@ -33,28 +33,6 @@
   .sidebar-body{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px}
 
   .field label{display:block;font-size:.78rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
-  .field input,.field textarea{width:100%;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.85rem;outline:none;transition:border .2s}
-  .field input:focus,.field textarea:focus{border-color:var(--primary)}
-
-  /* mode tabs */
-  .mode-tabs{display:flex;gap:0;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border)}
-  .mode-tab{flex:1;padding:9px 8px;text-align:center;font-size:.78rem;font-weight:600;cursor:pointer;background:var(--surface2);color:var(--text-muted);border:none;transition:background .15s,color .15s}
-  .mode-tab.active{background:var(--primary);color:#fff}
-  .mode-tab:not(.active):hover{background:var(--border)}
-
-  .mode-panel{display:none;flex-direction:column;gap:10px}
-  .mode-panel.active{display:flex}
-
-  /* model loader */
-  .btn-load{width:100%;padding:11px;border-radius:var(--radius-sm);border:1px solid var(--primary);background:var(--primary);color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s,transform .1s}
-  .btn-load:hover{background:var(--primary-hover)}
-  .btn-load:active{transform:scale(.97)}
-  .btn-load:disabled{opacity:.5;cursor:not-allowed}
-  .progress-wrap{display:none;flex-direction:column;gap:4px}
-  .progress-wrap.show{display:flex}
-  .progress-bar{width:100%;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
-  .progress-bar .fill{height:100%;width:0%;background:linear-gradient(90deg,var(--primary),var(--accent-blue));border-radius:4px;transition:width .3s}
-  .progress-text{font-size:.72rem;color:var(--text-muted);text-align:center}
 
   .upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px 16px;text-align:center;cursor:pointer;transition:border .2s,background .2s;position:relative}
   .upload-zone:hover,.upload-zone.drag{border-color:var(--primary);background:var(--primary-glow)}
@@ -75,6 +53,9 @@
 
   .btn-clear{width:100%;padding:9px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-size:.82rem;cursor:pointer;transition:background .15s,color .15s}
   .btn-clear:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+
+  .ai-badge{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.78rem;color:var(--text-muted)}
+  .ai-badge .badge-dot{width:8px;height:8px;border-radius:50%;background:var(--accent-green);flex-shrink:0}
 
   .chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
   .messages{flex:1;overflow-y:auto;padding:24px 24px 16px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
@@ -140,7 +121,6 @@
   <div class="logo">&#x1F393;</div>
   <h1><span>Study</span>Buddy</h1>
   <div class="header-actions">
-    <div class="pill"><span class="dot" id="modelDot"></span><span id="modelStatus">AI not ready</span></div>
     <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">No slides loaded</span></div>
   </div>
 </header>
@@ -152,31 +132,9 @@
     <div class="sidebar-header">&#9881; Configuration</div>
     <div class="sidebar-body">
 
-      <div class="field">
-        <label>AI Backend</label>
-        <div class="mode-tabs">
-          <button class="mode-tab" id="tabLocal" onclick="switchMode('local')">&#9889; Local (WebGPU)</button>
-          <button class="mode-tab active" id="tabCloud" onclick="switchMode('cloud')">&#9729; Cloud (Gemini)</button>
-        </div>
-      </div>
-
-      <!-- Local model panel -->
-      <div class="mode-panel" id="panelLocal">
-        <p style="font-size:.72rem;color:var(--text-muted)">Runs AI in your browser. No API key. Requires WebGPU (Chrome/Edge).</p>
-        <button class="btn-load" id="loadModelBtn" onclick="loadModel()">&#129302; Load AI Model</button>
-        <div class="progress-wrap" id="progressWrap">
-          <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
-          <div class="progress-text" id="progressText">Preparing...</div>
-        </div>
-      </div>
-
-      <!-- Cloud API panel -->
-      <div class="mode-panel active" id="panelCloud">
-        <div class="field">
-          <label>Gemini API Key</label>
-          <input type="password" id="apiKey" placeholder="Paste your Gemini API key" autocomplete="off">
-          <p style="font-size:.72rem;color:var(--text-muted);margin-top:5px">Free key from <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent-blue)">Google AI Studio</a> — no credit card needed</p>
-        </div>
+      <div class="ai-badge">
+        <span class="badge-dot"></span>
+        AI powered by Kimi K2 — no setup needed
       </div>
 
       <div class="field">
@@ -211,7 +169,7 @@
 
     <div class="input-area">
       <div class="input-wrap">
-        <textarea id="userInput" rows="1" placeholder="Set up AI backend first..." disabled></textarea>
+        <textarea id="userInput" rows="1" placeholder="Upload slides first..." disabled></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled aria-label="Send">&#10148;</button>
       </div>
     </div>
@@ -222,44 +180,25 @@
 import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
 
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-
-let webllm = null;
-let engine = null;
-let modelReady = false;
-let aiMode = 'cloud';
 let slideTexts = [];
 let conversationHistory = [];
 let isGenerating = false;
 
 const $ = id => document.getElementById(id);
-const apiKeyInput    = $('apiKey');
-const fileInput      = $('fileInput');
-const dropZone       = $('dropZone');
-const fileListEl     = $('fileList');
-const slideCountEl   = $('slideCount');
-const clearBtn       = $('clearBtn');
-const messagesEl     = $('messages');
-const welcomeEl      = $('welcome');
-const userInput      = $('userInput');
-const sendBtn        = $('sendBtn');
-const statusDot      = $('statusDot');
-const statusText     = $('statusText');
-const modelDot       = $('modelDot');
-const modelStatusEl  = $('modelStatus');
-const loadModelBtn   = $('loadModelBtn');
-const progressWrap   = $('progressWrap');
-const progressFill   = $('progressFill');
-const progressTextEl = $('progressText');
+const fileInput    = $('fileInput');
+const dropZone     = $('dropZone');
+const fileListEl   = $('fileList');
+const slideCountEl = $('slideCount');
+const clearBtn     = $('clearBtn');
+const messagesEl   = $('messages');
+const welcomeEl    = $('welcome');
+const userInput    = $('userInput');
+const sendBtn      = $('sendBtn');
+const statusDot    = $('statusDot');
+const statusText   = $('statusText');
 
 const uploadedFiles = [];
-const hasWebGPU = !!navigator.gpu;
 
-if (hasWebGPU) {
-  switchMode('local');
-}
-
-apiKeyInput.addEventListener('input', updateState);
 fileInput.addEventListener('change', e => handleFiles(e.target.files));
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
@@ -276,54 +215,6 @@ userInput.addEventListener('input', () => {
 userInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
-
-window.switchMode = function(mode) {
-  aiMode = mode;
-  $('tabLocal').classList.toggle('active', mode === 'local');
-  $('tabCloud').classList.toggle('active', mode === 'cloud');
-  $('panelLocal').classList.toggle('active', mode === 'local');
-  $('panelCloud').classList.toggle('active', mode === 'cloud');
-
-  if (mode === 'local' && !hasWebGPU) {
-    loadModelBtn.disabled = true;
-    loadModelBtn.textContent = 'WebGPU not supported — use Cloud mode';
-  }
-  updateState();
-};
-
-window.loadModel = async function() {
-  if (modelReady || loadModelBtn.disabled) return;
-  loadModelBtn.disabled = true;
-  loadModelBtn.textContent = 'Loading...';
-  progressWrap.classList.add('show');
-  modelStatusEl.textContent = 'Loading model...';
-
-  try {
-    if (!webllm) {
-      webllm = await import('https://esm.run/@mlc-ai/web-llm');
-    }
-    engine = new webllm.MLCEngine();
-    engine.setInitProgressCallback(report => {
-      const pct = Math.round(report.progress * 100);
-      progressFill.style.width = pct + '%';
-      progressTextEl.textContent = report.text || `${pct}%`;
-    });
-    await engine.reload('Llama-3.2-1B-Instruct-q4f16_1-MLC');
-
-    modelReady = true;
-    modelDot.classList.add('on');
-    modelStatusEl.textContent = 'Local model ready';
-    loadModelBtn.textContent = 'Model loaded';
-    progressWrap.classList.remove('show');
-    updateState();
-  } catch (err) {
-    modelStatusEl.textContent = 'Load failed';
-    loadModelBtn.textContent = 'Retry loading';
-    loadModelBtn.disabled = false;
-    progressTextEl.textContent = 'Error: ' + err.message;
-    console.error('Model load error:', err);
-  }
-};
 
 async function handleFiles(files) {
   for (const f of files) {
@@ -395,38 +286,15 @@ window.clearAll = () => {
   updateState();
 };
 
-function isAIReady() {
-  if (aiMode === 'local') return modelReady;
-  return apiKeyInput.value.trim().length > 0;
-}
-
 function updateState() {
-  const ready = isAIReady() && slideTexts.length > 0;
+  const ready = slideTexts.length > 0;
   userInput.disabled = !ready;
   sendBtn.disabled = !ready;
-  statusDot.classList.toggle('on', slideTexts.length > 0);
-  statusText.textContent = slideTexts.length > 0
+  statusDot.classList.toggle('on', ready);
+  statusText.textContent = ready
     ? `${uploadedFiles.length} PDF(s) loaded`
     : 'No slides loaded';
-
-  if (aiMode === 'cloud') {
-    const hasKey = apiKeyInput.value.trim().length > 0;
-    modelDot.classList.toggle('on', hasKey);
-    modelStatusEl.textContent = hasKey ? 'Gemini ready' : 'Enter API key';
-    userInput.placeholder = !hasKey
-      ? 'Enter your API key first...'
-      : slideTexts.length === 0
-        ? 'Upload slides first...'
-        : 'Ask about your slides...';
-  } else {
-    modelDot.classList.toggle('on', modelReady);
-    modelStatusEl.textContent = modelReady ? 'Local model ready' : 'Load model first';
-    userInput.placeholder = !modelReady
-      ? 'Load the AI model first...'
-      : slideTexts.length === 0
-        ? 'Upload slides first...'
-        : 'Ask about your slides...';
-  }
+  userInput.placeholder = ready ? 'Ask about your slides...' : 'Upload slides first...';
 }
 
 function addMessage(role, html) {
@@ -438,12 +306,6 @@ function addMessage(role, html) {
   messagesEl.appendChild(wrap);
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return wrap;
-}
-
-function addTyping() {
-  const el = addMessage('bot', '<div class="typing"><span></span><span></span><span></span></div>');
-  el.id = 'typingMsg';
-  return el;
 }
 
 function formatMarkdown(text) {
@@ -477,37 +339,17 @@ window.sendSuggestion = el => {
   sendMessage();
 };
 
-async function sendViaGemini(text) {
-  const slidesContext = slideTexts.join('\n');
-  const systemPrompt = `You are "Study Buddy", a friendly and knowledgeable AI tutor. The student has uploaded class slides whose extracted text is below. Use ONLY the slide content to answer. If the answer isn't in the slides, say so. Be concise yet thorough. Use markdown formatting. When quizzing, give one question at a time and wait for the answer.\n\n=== SLIDE CONTENT ===\n${slidesContext}\n=== END SLIDES ===`;
+window.sendMessage = async function() {
+  const text = userInput.value.trim();
+  if (!text || isGenerating) return;
 
-  conversationHistory.push({ role: 'user', parts: [{ text }] });
+  addMessage('user', escHtml(text));
+  userInput.value = '';
+  userInput.style.height = 'auto';
 
-  const body = {
-    system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: conversationHistory,
-    generationConfig: { temperature: 0.7, topP: 0.95, maxOutputTokens: 4096 }
-  };
+  isGenerating = true;
+  sendBtn.disabled = true;
 
-  const res = await fetch(`${GEMINI_URL}?key=${apiKeyInput.value.trim()}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    conversationHistory.pop();
-    throw new Error(err?.error?.message || `API error ${res.status}`);
-  }
-
-  const data = await res.json();
-  const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received.';
-  conversationHistory.push({ role: 'model', parts: [{ text: reply }] });
-  return reply;
-}
-
-async function sendViaLocal(text, botMsg) {
   const slidesContext = slideTexts.join('\n');
   const systemPrompt = `You are "Study Buddy", a friendly and knowledgeable AI tutor. The student has uploaded class slides whose extracted text is below. Use ONLY the slide content to answer. If the answer isn't in the slides, say so. Be concise yet thorough. Use markdown formatting. When quizzing, give one question at a time and wait for the answer.\n\n=== SLIDE CONTENT ===\n${slidesContext}\n=== END SLIDES ===`;
 
@@ -518,64 +360,63 @@ async function sendViaLocal(text, botMsg) {
     ...conversationHistory
   ];
 
-  const bubbleSpan = botMsg.querySelector('.streaming-text');
+  const botMsg = addMessage('bot', '<span class="streaming-text"></span>');
+  const bubbleEl = botMsg.querySelector('.bubble');
+  const streamSpan = botMsg.querySelector('.streaming-text');
   let fullReply = '';
 
-  const chunks = await engine.chat.completions.create({
-    messages,
-    temperature: 0.7,
-    max_tokens: 2048,
-    stream: true,
-  });
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages }),
+    });
 
-  for await (const chunk of chunks) {
-    const delta = chunk.choices?.[0]?.delta?.content || '';
-    fullReply += delta;
-    bubbleSpan.innerHTML = formatMarkdown(fullReply);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-
-  if (!fullReply.trim()) fullReply = 'No response generated.';
-  conversationHistory.push({ role: 'assistant', content: fullReply });
-  return fullReply;
-}
-
-window.sendMessage = async function() {
-  const text = userInput.value.trim();
-  if (!text || isGenerating || !isAIReady()) return;
-
-  addMessage('user', escHtml(text));
-  userInput.value = '';
-  userInput.style.height = 'auto';
-
-  isGenerating = true;
-  sendBtn.disabled = true;
-
-  if (aiMode === 'cloud') {
-    const typingEl = addTyping();
-    try {
-      const reply = await sendViaGemini(text);
-      typingEl.remove();
-      addMessage('bot', formatMarkdown(reply));
-    } catch (err) {
-      typingEl.remove();
-      addMessage('bot', `<span style="color:var(--danger)">Error: ${escHtml(err.message)}</span>`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || `Server error ${res.status}`);
     }
-  } else {
-    const botMsg = addMessage('bot', '<span class="streaming-text"></span>');
-    try {
-      const reply = await sendViaLocal(text, botMsg);
-      botMsg.querySelector('.bubble').innerHTML = formatMarkdown(reply);
-    } catch (err) {
-      botMsg.querySelector('.bubble').innerHTML = `<span style="color:var(--danger)">Error: ${escHtml(err.message)}</span>`;
-      conversationHistory.pop();
-      console.error('Generation error:', err);
-    }
-  }
 
-  isGenerating = false;
-  sendBtn.disabled = false;
-  userInput.focus();
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const json = JSON.parse(payload);
+          const delta = json.choices?.[0]?.delta?.content || '';
+          if (delta) {
+            fullReply += delta;
+            streamSpan.innerHTML = formatMarkdown(fullReply);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+        } catch {}
+      }
+    }
+
+    if (!fullReply.trim()) fullReply = 'No response generated.';
+    bubbleEl.innerHTML = formatMarkdown(fullReply);
+    conversationHistory.push({ role: 'assistant', content: fullReply });
+  } catch (err) {
+    bubbleEl.innerHTML = `<span style="color:var(--danger)">Error: ${escHtml(err.message)}</span>`;
+    conversationHistory.pop();
+    console.error('Chat error:', err);
+  } finally {
+    isGenerating = false;
+    sendBtn.disabled = false;
+    userInput.focus();
+  }
 };
 
 window.toggleSidebar = () => {
