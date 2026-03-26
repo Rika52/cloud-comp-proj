@@ -70,10 +70,17 @@ Then open http://localhost:3000 in your browser.
 
 ## Environment Variables
 
+Create a `.env` file in the project root (never commit this file):
+
+```bash
+OPENROUTER_KEY=your-openrouter-api-key-here
+```
+
 | Variable | Description | Default |
 |---|---|---|
 | `PORT` | Server port | `80` |
-| `OPENROUTER_KEY` | OpenRouter API key | Hardcoded fallback |
+| `OPENROUTER_KEY` | OpenRouter API key | **Required** — no default |
+| `MODEL` | OpenRouter model ID | `moonshotai/kimi-k2-thinking` |
 
 ## Project Structure
 

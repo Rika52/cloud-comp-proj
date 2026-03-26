@@ -1,11 +1,16 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 
 const app = express();
-const PORT = 80;
+const PORT = process.env.PORT || 80;
+const OPENROUTER_KEY = process.env.OPENROUTER_KEY;
+const MODEL = process.env.MODEL || 'moonshotai/kimi-k2-thinking';
 
-const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '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';
-const MODEL = 'moonshotai/kimi-k2-thinking';
+if (!OPENROUTER_KEY) {
+  console.error('ERROR: OPENROUTER_KEY not set. Create a .env file with your key.');
+  process.exit(1);
+}
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
