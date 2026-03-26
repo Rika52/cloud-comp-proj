@@ -1,3 +1,23 @@
+<!--
+  =============================================================================
+  index.html — Study Buddy Frontend (Standalone Version with Dual AI Modes)
+  =============================================================================
+  This is the standalone version of the frontend that does NOT require a backend
+  server. It can run by simply opening the file in a browser (via an HTTP server).
+  
+  Unlike public/index.html (which relies on the Express backend to proxy AI calls),
+  this version connects to AI services directly from the browser:
+  
+  MODE 1: Cloud (Gemini) — Calls Google's Gemini API directly using a user-provided
+          API key. Simple but requires the user to get their own key.
+  
+  MODE 2: Local (WebGPU) — Downloads and runs a Llama 3.2 model entirely in the
+          browser using WebLLM and WebGPU. No API key needed, but requires a
+          browser that supports WebGPU (Chrome 113+ or Edge 113+).
+  
+  The app auto-detects WebGPU support and defaults to the appropriate mode.
+  =============================================================================
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +25,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Study Buddy — AI Slide Assistant</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
+<!-- All CSS is inline — see public/index.html for detailed CSS comments.
+     Additional styles here: mode-tabs, mode-panels, model loader progress bar -->
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -219,18 +241,25 @@
 </div>
 
 <script type="module">
+// =============================================================================
+// PDF.js — Load the PDF parsing library and configure its web worker
+// =============================================================================
 import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
 
+// Gemini API endpoint — called directly from the browser in "cloud" mode
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-let webllm = null;
-let engine = null;
-let modelReady = false;
-let aiMode = 'cloud';
-let slideTexts = [];
-let conversationHistory = [];
-let isGenerating = false;
+// =============================================================================
+// APPLICATION STATE
+// =============================================================================
+let webllm = null;             // WebLLM library (lazy-loaded only if user picks local mode)
+let engine = null;             // WebLLM engine instance (holds the loaded AI model)
+let modelReady = false;        // Whether the local model has finished loading
+let aiMode = 'cloud';          // Current AI backend: 'cloud' (Gemini) or 'local' (WebGPU)
+let slideTexts = [];           // Extracted text from uploaded PDFs
+let conversationHistory = [];  // Chat history sent to the AI for context
+let isGenerating = false;      // Prevents sending while AI is still responding
 
 const $ = id => document.getElementById(id);
 const apiKeyInput    = $('apiKey');
@@ -253,8 +282,10 @@ const progressFill   = $('progressFill');
 const progressTextEl = $('progressText');
 
 const uploadedFiles = [];
-const hasWebGPU = !!navigator.gpu;
 
+// Detect WebGPU support — required for the local AI model to run in-browser
+// If available, auto-switch to local mode so the user doesn't need an API key
+const hasWebGPU = !!navigator.gpu;
 if (hasWebGPU) {
   switchMode('local');
 }
@@ -277,6 +308,11 @@ userInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 
+/**
+ * switchMode — Toggles between 'local' (WebGPU) and 'cloud' (Gemini) AI backends.
+ * Updates the tab buttons, shows/hides the relevant configuration panel,
+ * and disables the local option if WebGPU is not supported.
+ */
 window.switchMode = function(mode) {
   aiMode = mode;
   $('tabLocal').classList.toggle('active', mode === 'local');
@@ -291,6 +327,13 @@ window.switchMode = function(mode) {
   updateState();
 };
 
+/**
+ * loadModel — Downloads and initializes the Llama 3.2 1B model in the browser
+ * using the WebLLM library and WebGPU acceleration. The model (~1GB) downloads
+ * on first load and is cached by the browser for future visits.
+ * Shows a progress bar during download. Once loaded, the user can chat
+ * without any API key or internet connection to an AI service.
+ */
 window.loadModel = async function() {
   if (modelReady || loadModelBtn.disabled) return;
   loadModelBtn.disabled = true;
@@ -395,6 +438,11 @@ window.clearAll = () => {
   updateState();
 };
 
+/**
+ * isAIReady — Returns true if the selected AI backend is configured and ready.
+ * For local mode: the model must be downloaded and loaded.
+ * For cloud mode: the user must have entered a Gemini API key.
+ */
 function isAIReady() {
   if (aiMode === 'local') return modelReady;
   return apiKeyInput.value.trim().length > 0;
@@ -477,6 +525,12 @@ window.sendSuggestion = el => {
   sendMessage();
 };
 
+/**
+ * sendViaGemini — Sends a message to Google's Gemini API (cloud mode).
+ * Makes a direct HTTP request from the browser to the Gemini REST API.
+ * The API key is sent as a query parameter. Returns the AI's reply text.
+ * Note: Gemini uses a different message format (role + parts) than OpenAI.
+ */
 async function sendViaGemini(text) {
   const slidesContext = slideTexts.join('\n');
   const systemPrompt = `You are "Study Buddy", a friendly and knowledgeable AI tutor. The student has uploaded class slides whose extracted text is below. Use ONLY the slide content to answer. If the answer isn't in the slides, say so. Be concise yet thorough. Use markdown formatting. When quizzing, give one question at a time and wait for the answer.\n\n=== SLIDE CONTENT ===\n${slidesContext}\n=== END SLIDES ===`;
@@ -507,6 +561,12 @@ async function sendViaGemini(text) {
   return reply;
 }
 
+/**
+ * sendViaLocal — Sends a message to the local WebLLM model (local mode).
+ * Uses the OpenAI-compatible chat completions API provided by WebLLM.
+ * Streams the response token-by-token, updating the bot's message bubble
+ * in real-time as each token is generated by the local model.
+ */
 async function sendViaLocal(text, botMsg) {
   const slidesContext = slideTexts.join('\n');
   const systemPrompt = `You are "Study Buddy", a friendly and knowledgeable AI tutor. The student has uploaded class slides whose extracted text is below. Use ONLY the slide content to answer. If the answer isn't in the slides, say so. Be concise yet thorough. Use markdown formatting. When quizzing, give one question at a time and wait for the answer.\n\n=== SLIDE CONTENT ===\n${slidesContext}\n=== END SLIDES ===`;
@@ -540,6 +600,11 @@ async function sendViaLocal(text, botMsg) {
   return fullReply;
 }
 
+/**
+ * sendMessage — Routes the user's message to the appropriate AI backend.
+ * In cloud mode: shows a typing indicator, then replaces it with the full reply.
+ * In local mode: streams tokens directly into the bot's message bubble.
+ */
 window.sendMessage = async function() {
   const text = userInput.value.trim();
   if (!text || isGenerating || !isAIReady()) return;

@@ -2,6 +2,7 @@
   "name": "study-buddy",
   "version": "1.0.0",
   "private": true,
+  "description": "AI-powered slide assistant that helps students study their class slides. Uses Node.js/Express backend with OpenRouter API.",
   "scripts": {
     "start": "node server.js"
   },
